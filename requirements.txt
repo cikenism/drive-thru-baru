@@ -1,6 +1,4 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-sounddevice
-numpy
-google-generativeai
+google-generativeai>=0.5.2
