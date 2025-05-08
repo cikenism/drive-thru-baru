@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.*
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# macOS files
+.DS_Store
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Logs and local data
+*.log
+*.sqlite3
+*.db
+*.pid
+
+# MyPy, Coverage, Pyre
+.mypy_cache/
+.pyre/
+.coverage
+coverage.xml
+htmlcov/
+
+# Railway generated
+railway.json
+
+# Sounddevice temp cache or audio
+*.wav
+*.pcm
+*.mp3
+*.flac
+*.aiff
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
