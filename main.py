@@ -23,7 +23,9 @@ MODEL = "models/gemini-2.0-flash-live-001"
 API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 
-HEADERS = [("Authorization", f"Bearer {os.getenv('GEMINI_API_KEY')}")]
+headers = [
+    ("Authorization", f"Bearer {API_KEY}")
+]
 
 def save_order(items):
     print("\n📝 Pesanan Disimpan:", items)
@@ -33,7 +35,7 @@ def save_order(items):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    async with websockets.connect(GEMINI_WS_URL, headers=HEADERS, ssl=ssl.create_default_context()) as gemini_ws:
+    async with websockets.connect(GEMINI_WS_URL, extra_headers=headers, ssl=ssl.create_default_context()) as gemini_ws:
         # Kirim setup awal
         setup_message = {
             "setup": {
