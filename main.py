@@ -15,9 +15,7 @@ MODEL = "models/gemini-2.0-flash-live-001"
 API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
 
-HEADERS = {
-    "Authorization": f"Bearer {API_KEY}"
-}
+HEADERS = [("Authorization", f"Bearer {os.getenv('GEMINI_API_KEY')}")]
 
 # Fungsi dipanggil oleh Gemini (toolCall)
 def save_order(items):
