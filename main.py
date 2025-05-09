@@ -5,11 +5,19 @@ import base64
 import asyncio
 import websockets
 from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Ganti dengan daftar domain yang diizinkan jika perlu
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MODEL = "models/gemini-2.0-flash-live-001"
 API_KEY = os.getenv("GEMINI_API_KEY")
@@ -17,7 +25,6 @@ GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generative
 
 HEADERS = [("Authorization", f"Bearer {os.getenv('GEMINI_API_KEY')}")]
 
-# Fungsi dipanggil oleh Gemini (toolCall)
 def save_order(items):
     print("\n📝 Pesanan Disimpan:", items)
     return {"status": "ok", "pesanan": items}
@@ -26,7 +33,7 @@ def save_order(items):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    async with websockets.connect(GEMINI_WS_URL, extra_headers=HEADERS, ssl=ssl.create_default_context()) as gemini_ws:
+    async with websockets.connect(GEMINI_WS_URL, headers=HEADERS, ssl=ssl.create_default_context()) as gemini_ws:
         # Kirim setup awal
         setup_message = {
             "setup": {
