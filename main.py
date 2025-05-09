@@ -1,99 +1,57 @@
-from fastapi import FastAPI, WebSocket
 import os
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 import asyncio
-import json
-
-load_dotenv()
+import websockets
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from google import genai
 
 app = FastAPI()
 
-MODEL = "models/gemini-2.0-flash-live-001"
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Fungsi yang dipanggil Gemini via tool_call
-def save_order(items: list[dict]):
-    print("\n📝 Pesanan Disimpan:", items)
-    return {"status": "ok", "pesanan": items}
-
-# Deklarasi fungsi Gemini
-tools = [
-    {
-        "function_declarations": [
-            {
-                "name": "save_order",
-                "description": "Menyimpan pesanan makanan atau minuman pelanggan.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "menu": {"type": "string", "description": "Menu makanan atau minuman yang dipesan seperti ayam goreng, fanta, cola, kentang goreng, dll. Jangan mencatat hal-hal aneh seperti hewan, benda asing, atau kata tidak relevan"},
-                                    "qty": {"type": "integer", "description": "Jumlah item yang dipesan, misalnya 1, 2, 5"}
-                                },
-                                "required": ["menu", "qty"]
-                            }
-                        },
-                        "note": {
-                            "type": "string",
-                            "description": "Catatan tambahan"
-                        }
-                    },
-                    "required": ["items"]
-                },
-            }
-        ]
-    }
-]
-
-# Konfigurasi LiveConnect Gemini
-config = types.LiveConnectConfig(
-    system_instruction=types.Content(parts=[
-        types.Part(text="Kamu adalah asisten drive thru. Jawab hanya dalam Bahasa Indonesia.")
-    ]),
-    response_modalities=["AUDIO", "TEXT"],
-    speech_config=types.SpeechConfig(language_code="id-ID"),
-    tools=tools,
+# Enable CORS for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Update with frontend URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+MODEL = "models/gemini-2.0-flash-live-001"
+CONFIG = {"response_modalities": ["AUDIO"]}
+
+# Initialize Google GenAI client
+client = genai.Client(http_options={"api_version": "v1beta"})
+
+
 @app.websocket("/ws/audio")
-async def websocket_endpoint(websocket: WebSocket):
+async def audio_proxy(websocket: WebSocket):
     await websocket.accept()
 
-    async with client.aio.live.connect(model=MODEL, config=config) as session:
+    try:
+        async with client.aio.live.connect(model=MODEL, config=CONFIG) as session:
+            # Task to receive data from Google and send back to frontend
+            async def receive_from_google():
+                async for response in session.receive():
+                    if response.data:
+                        await websocket.send_bytes(response.data)
+                    if response.text:
+                        await websocket.send_text(response.text)
 
-        async def sender():
+            receiver_task = asyncio.create_task(receive_from_google())
+
+            # Receive audio from frontend and forward to Google API
             while True:
                 data = await websocket.receive_bytes()
-                await session.send(input={"data": data, "mime_type": "audio/pcm"})
+                await session.send({"data": data, "mime_type": "audio/pcm"})
 
-        async def receiver():
-            turn = session.receive()
-            async for response in turn:
-                if response.text:
-                    await websocket.send_text(response.text)
+    except WebSocketDisconnect:
+        print("Frontend disconnected.")
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        await websocket.close()
 
-                if response.data:
-                    await websocket.send_bytes(response.data)
 
-                if response.tool_call:
-                    function_responses = []
-                    for fc in response.tool_call.function_calls:
-                        if fc.name == "save_order":
-                            items = fc.args.get("items", [])
-                            result = save_order(items)
-                            function_responses.append(
-                                types.FunctionResponse(
-                                    id=fc.id,
-                                    name=fc.name,
-                                    response=result
-                                )
-                            )
-                    await session.send_tool_response(function_responses=function_responses)
-
-        await asyncio.gather(sender(), receiver())
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
