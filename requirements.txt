@@ -1,4 +1,5 @@
 fastapi
 uvicorn[standard]
 python-dotenv
+websockets
 google-generativeai>=0.5.2
